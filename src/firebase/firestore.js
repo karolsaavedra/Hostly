@@ -148,6 +148,60 @@ export const registrarIngreso = async (datos) => {
   });
 };
 
+// ─── HISTORIAL DE ESTANCIAS ────────────────────────────
+export const registrarHistorial = async (datos) => {
+  return await addDoc(collection(db, "historial_estancias"), {
+    ...datos,
+    creadoEn: serverTimestamp(),
+  });
+};
+
+export const suscribirHistorial = (callback) => {
+  const q = query(
+    collection(db, "historial_estancias"),
+    orderBy("creadoEn", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+// ─── EGRESOS ───────────────────────────────────────────
+export const registrarEgreso = async (datos) => {
+  return await addDoc(collection(db, "egresos"), {
+    ...datos,
+    fecha: serverTimestamp(),
+  });
+};
+
+export const suscribirEgresos = (callback) => {
+  const q = query(
+    collection(db, "egresos"),
+    orderBy("fecha", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+// ─── PAGOS A EMPLEADOS ─────────────────────────────────
+export const registrarPagoEmpleado = async (datos) => {
+  return await addDoc(collection(db, "pagos_empleados"), {
+    ...datos,
+    fecha: serverTimestamp(),
+  });
+};
+
+export const suscribirPagosEmpleados = (callback) => {
+  const q = query(
+    collection(db, "pagos_empleados"),
+    orderBy("fecha", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
 // ─── SEMILLA: crear automáticamente 100 habitaciones ───
 export const seedHabitaciones = async () => {
   const habitaciones = [];

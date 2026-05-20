@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         usuario,
+        rol: usuario?.rol || null,
         loading,
         logout
       }}

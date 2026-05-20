@@ -7,28 +7,74 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
+// Rutas donde se muestra el botón "Nueva reserva"
+const RUTAS_RESERVA = ["/reservas", "/", "/checkin", "/checkout"];
+
 // Navegación permitida por rol
 const NAV_POR_ROL = {
+  admin: [
+    {
+      section: "Principal",
+      items: [
+        { path: "/", icon: "◈", label: "Inicio" },
+      ],
+    },
+    {
+      section: "Operación",
+      items: [
+        { path: "/reservas",    icon: "📅", label: "Reservas",         badge: "live" },
+        { path: "/checkin",     icon: "↘",  label: "Check-in" },
+        { path: "/checkout",    icon: "↗",  label: "Check-out" },
+        { path: "/habitaciones",icon: "▦",  label: "Habitaciones" },
+        { path: "/clientes",    icon: "◉",  label: "Clientes" },
+        { path: "/historial",   icon: "📋", label: "Historial estancias" },
+      ],
+    },
+    {
+      section: "Finanzas",
+      items: [
+        { path: "/ingresos",        icon: "◎", label: "Ingresos" },
+        { path: "/egresos",         icon: "◎", label: "Egresos" },
+        { path: "/pagos-empleados", icon: "◎", label: "Pagos empleados" },
+        { path: "/reportes",        icon: "▤", label: "Reportes" },
+      ],
+    },
+    {
+      section: "Sistema",
+      items: [
+        { path: "/accesos",  icon: "◈", label: "Control acceso", badge: "live" },
+        { path: "/usuarios", icon: "◉", label: "Usuarios / empleados" },
+      ],
+    },
+  ],
+
   recepcionista: [
     {
       section: "Principal",
       items: [
-        { path: "/", icon: "◈", label: "Dashboard" },
+        { path: "/", icon: "◈", label: "Inicio" },
       ],
     },
     {
       section: "Gestión",
       items: [
-        { path: "/reservas", icon: "📅", label: "Reservas", badge: "live" },
-        { path: "/checkin", icon: "↘", label: "Check-in" },
-        { path: "/checkout", icon: "↗", label: "Check-out" },
-        { path: "/habitaciones", icon: "▦", label: "Habitaciones" },
-        { path: "/clientes", icon: "◉", label: "Clientes" },
+        { path: "/reservas",    icon: "📅", label: "Reservas",    badge: "live" },
+        { path: "/checkin",     icon: "↘",  label: "Check-in" },
+        { path: "/checkout",    icon: "↗",  label: "Check-out" },
+        { path: "/habitaciones",icon: "▦",  label: "Habitaciones" },
+        { path: "/clientes",    icon: "◉",  label: "Clientes" },
+        { path: "/historial",   icon: "📋", label: "Historial" },
       ],
     },
   ],
 
   servicio: [
+    {
+      section: "Principal",
+      items: [
+        { path: "/", icon: "◈", label: "Inicio" },
+      ],
+    },
     {
       section: "Pisos",
       items: [
@@ -39,15 +85,29 @@ const NAV_POR_ROL = {
 
   contador: [
     {
+      section: "Principal",
+      items: [
+        { path: "/", icon: "◈", label: "Inicio" },
+      ],
+    },
+    {
       section: "Finanzas",
       items: [
-        { path: "/reportes", icon: "▤", label: "Reportes" },
-        { path: "/ingresos", icon: "◎", label: "Ingresos" },
+        { path: "/reportes",        icon: "▤", label: "Reportes" },
+        { path: "/ingresos",        icon: "◎", label: "Ingresos" },
+        { path: "/egresos",         icon: "◎", label: "Egresos" },
+        { path: "/pagos-empleados", icon: "◎", label: "Pagos empleados" },
       ],
     },
   ],
 
   vigilante: [
+    {
+      section: "Principal",
+      items: [
+        { path: "/", icon: "◈", label: "Inicio" },
+      ],
+    },
     {
       section: "Seguridad",
       items: [
@@ -58,17 +118,27 @@ const NAV_POR_ROL = {
 };
 
 const AVATARES = {
+  admin:         "AD",
   recepcionista: "RC",
-  servicio: "SV",
-  contador: "CT",
-  vigilante: "VG",
+  servicio:      "SV",
+  contador:      "CT",
+  vigilante:     "VG",
 };
 
 const COLORES = {
+  admin:         "#9B59B6",
   recepcionista: "#D4A843",
-  servicio: "#2ECC71",
-  contador: "#3498DB",
-  vigilante: "#E74C3C",
+  servicio:      "#2ECC71",
+  contador:      "#3498DB",
+  vigilante:     "#E74C3C",
+};
+
+const LABELS_ROL = {
+  admin:         "Administrador",
+  recepcionista: "Recepcionista",
+  servicio:      "Housekeeping",
+  contador:      "Contador",
+  vigilante:     "Vigilante",
 };
 
 export default function Layout() {
@@ -76,8 +146,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const secciones =
-    NAV_POR_ROL[rol] || NAV_POR_ROL.recepcionista;
+  const rolActual = rol || "recepcionista";
+  const secciones = NAV_POR_ROL[rolActual] || NAV_POR_ROL.recepcionista;
 
   const handleLogout = async () => {
     await logout();
@@ -90,6 +160,10 @@ export default function Layout() {
       .flatMap((sec) => sec.items)
       .find((item) => item.path === location.pathname)?.label || "Hostly";
 
+  const puedeReservar = RUTAS_RESERVA.some(r =>
+    (rol === "admin" || rol === "recepcionista")
+  );
+
   return (
     <div style={s.app}>
       {/* ───────── SIDEBAR ───────── */}
@@ -98,12 +172,9 @@ export default function Layout() {
         <div style={s.logoArea}>
           <div style={s.logoMark}>
             <div style={s.logoIcon}>H</div>
-
             <div>
               <div style={s.logoText}>Hostly</div>
-              <div style={s.logoSub}>
-                Hotel Management
-              </div>
+              <div style={s.logoSub}>Hotel Management</div>
             </div>
           </div>
         </div>
@@ -112,13 +183,10 @@ export default function Layout() {
         <nav style={s.nav}>
           {secciones.map((sec) => (
             <div key={sec.section}>
-              <div style={s.navSection}>
-                {sec.section}
-              </div>
+              <div style={s.navSection}>{sec.section}</div>
 
               {sec.items.map((item) => {
-                const active =
-                  location.pathname === item.path;
+                const active = location.pathname === item.path;
 
                 return (
                   <div
@@ -129,20 +197,13 @@ export default function Layout() {
                     }}
                     onClick={() => navigate(item.path)}
                   >
-                    {active && (
-                      <div style={s.navIndicator} />
-                    )}
+                    {active && <div style={s.navIndicator} />}
 
-                    <span
-                      style={{
-                        width: 16,
-                        textAlign: "center",
-                      }}
-                    >
+                    <span style={{ width: 16, textAlign: "center" }}>
                       {item.icon}
                     </span>
 
-                    <span>{item.label}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
 
                     {item.badge === "live" && (
                       <span style={s.liveDot} />
@@ -159,19 +220,19 @@ export default function Layout() {
           <div
             style={{
               ...s.sfAvatar,
-              color: COLORES[rol],
+              color: COLORES[rolActual] || "#D4A843",
+              borderColor: `${COLORES[rolActual]}33`,
             }}
           >
-            {AVATARES[rol]}
+            {AVATARES[rolActual] || "??"}
           </div>
 
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={s.sfName}>
-              {usuario?.email?.split("@")[0] || rol}
+              {usuario?.nombre || usuario?.email?.split("@")[0] || rolActual}
             </div>
-
-            <div style={s.sfRole}>
-              {rol}
+            <div style={{ ...s.sfRole, color: COLORES[rolActual] || "#6B6660" }}>
+              {LABELS_ROL[rolActual] || rolActual}
             </div>
           </div>
 
@@ -189,9 +250,7 @@ export default function Layout() {
       <div style={s.main}>
         {/* Topbar */}
         <div style={s.topbar}>
-          <div style={s.topbarTitle}>
-            {paginaActual}
-          </div>
+          <div style={s.topbarTitle}>{paginaActual}</div>
 
           <div style={s.statusPill}>
             <div style={s.statusDot} />
@@ -206,12 +265,14 @@ export default function Layout() {
             })}
           </div>
 
-          <button
-            style={s.btnGold}
-            onClick={() => navigate("/reservas")}
-          >
-            + Nueva reserva
-          </button>
+          {(rolActual === "admin" || rolActual === "recepcionista") && (
+            <button
+              style={s.btnGold}
+              onClick={() => navigate("/reservas")}
+            >
+              + Nueva reserva
+            </button>
+          )}
         </div>
 
         {/* Contenido dinámico */}
@@ -333,11 +394,11 @@ const s = {
   },
 
   liveDot: {
-    marginLeft: "auto",
     width: 6,
     height: 6,
     borderRadius: "50%",
     background: "#2ECC71",
+    flexShrink: 0,
   },
 
   sidebarFooter: {
@@ -366,6 +427,9 @@ const s = {
     fontSize: 12,
     fontWeight: 500,
     color: "#E8E0D0",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
 
   sfRole: {
@@ -380,6 +444,7 @@ const s = {
     color: "#6B6660",
     cursor: "pointer",
     fontSize: 15,
+    flexShrink: 0,
   },
 
   main: {

@@ -17,31 +17,55 @@ import ServicioPage from "./pages/ServicioPage";
 import ReportesPage from "./pages/ReportesPage";
 import IngresosPage from "./pages/IngresosPage";
 import AccesosPage from "./pages/AccesosPage";
-import { useEffect } from "react";
-import { seedHabitaciones } from "./firebase/firestore";
+import HistorialPage from "./pages/HistorialPage";
+import EgresosPage from "./pages/EgresosPage";
+import PagosEmpleadosPage from "./pages/PagosEmpleadosPage";
+import UsuariosPage from "./pages/UsuariosPage";
 
 // Rutas permitidas por rol
 const ROL_RUTAS = {
+  admin: [
+    "/",
+    "/reservas",
+    "/checkin",
+    "/checkout",
+    "/habitaciones",
+    "/clientes",
+    "/historial",
+    "/ingresos",
+    "/egresos",
+    "/pagos-empleados",
+    "/reportes",
+    "/accesos",
+    "/usuarios",
+  ],
+
   recepcionista: [
     "/",
     "/reservas",
     "/checkin",
     "/checkout",
     "/habitaciones",
-    "/clientes"
+    "/clientes",
+    "/historial",
   ],
 
   servicio: [
-    "/servicio"
+    "/",
+    "/servicio",
   ],
 
   contador: [
+    "/",
     "/reportes",
-    "/ingresos"
+    "/ingresos",
+    "/egresos",
+    "/pagos-empleados",
   ],
 
   vigilante: [
-    "/accesos"
+    "/",
+    "/accesos",
   ],
 };
 
@@ -49,11 +73,7 @@ const ProtectedRoute = ({ children, ruta }) => {
   const { usuario, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="loading-screen">
-        Cargando Hostly...
-      </div>
-    );
+    return <div className="loading-screen">Cargando Hostly...</div>;
   }
 
   if (!usuario) {
@@ -63,12 +83,7 @@ const ProtectedRoute = ({ children, ruta }) => {
   const permitidas = ROL_RUTAS[usuario.rol] || [];
 
   if (!permitidas.includes(ruta)) {
-    return (
-      <Navigate
-        to={permitidas[0] || "/login"}
-        replace
-      />
-    );
+    return <Navigate to={permitidas[0] || "/login"} replace />;
   }
 
   return children;
@@ -78,11 +93,7 @@ export default function App() {
   const { usuario, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="loading-screen">
-        Iniciando Hostly...
-      </div>
-    );
+    return <div className="loading-screen">Iniciando Hostly...</div>;
   }
 
   if (!usuario) {
@@ -97,7 +108,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
 
-        {/* Recepcionista */}
+        {/* Inicio (dashboard por rol) */}
         <Route
           index
           element={
@@ -107,95 +118,32 @@ export default function App() {
           }
         />
 
-        <Route
-          path="reservas"
-          element={
-            <ProtectedRoute ruta="/reservas">
-              <ReservasPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Recepcionista + Admin */}
+        <Route path="reservas" element={<ProtectedRoute ruta="/reservas"><ReservasPage /></ProtectedRoute>} />
+        <Route path="checkin" element={<ProtectedRoute ruta="/checkin"><CheckinPage /></ProtectedRoute>} />
+        <Route path="checkout" element={<ProtectedRoute ruta="/checkout"><CheckoutPage /></ProtectedRoute>} />
+        <Route path="habitaciones" element={<ProtectedRoute ruta="/habitaciones"><HabitacionesPage /></ProtectedRoute>} />
+        <Route path="clientes" element={<ProtectedRoute ruta="/clientes"><ClientesPage /></ProtectedRoute>} />
+        <Route path="historial" element={<ProtectedRoute ruta="/historial"><HistorialPage /></ProtectedRoute>} />
 
-        <Route
-          path="checkin"
-          element={
-            <ProtectedRoute ruta="/checkin">
-              <CheckinPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Servicio / Housekeeping */}
+        <Route path="servicio" element={<ProtectedRoute ruta="/servicio"><ServicioPage /></ProtectedRoute>} />
 
-        <Route
-          path="checkout"
-          element={
-            <ProtectedRoute ruta="/checkout">
-              <CheckoutPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Contador + Admin */}
+        <Route path="reportes" element={<ProtectedRoute ruta="/reportes"><ReportesPage /></ProtectedRoute>} />
+        <Route path="ingresos" element={<ProtectedRoute ruta="/ingresos"><IngresosPage /></ProtectedRoute>} />
+        <Route path="egresos" element={<ProtectedRoute ruta="/egresos"><EgresosPage /></ProtectedRoute>} />
+        <Route path="pagos-empleados" element={<ProtectedRoute ruta="/pagos-empleados"><PagosEmpleadosPage /></ProtectedRoute>} />
 
-        <Route
-          path="habitaciones"
-          element={
-            <ProtectedRoute ruta="/habitaciones">
-              <HabitacionesPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Vigilante + Admin */}
+        <Route path="accesos" element={<ProtectedRoute ruta="/accesos"><AccesosPage /></ProtectedRoute>} />
 
-        <Route
-          path="clientes"
-          element={
-            <ProtectedRoute ruta="/clientes">
-              <ClientesPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Admin exclusivo */}
+        <Route path="usuarios" element={<ProtectedRoute ruta="/usuarios"><UsuariosPage /></ProtectedRoute>} />
 
-        {/* Servicio */}
-        <Route
-          path="servicio"
-          element={
-            <ProtectedRoute ruta="/servicio">
-              <ServicioPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Contador */}
-        <Route
-          path="reportes"
-          element={
-            <ProtectedRoute ruta="/reportes">
-              <ReportesPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="ingresos"
-          element={
-            <ProtectedRoute ruta="/ingresos">
-              <IngresosPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Vigilante */}
-        <Route
-          path="accesos"
-          element={
-            <ProtectedRoute ruta="/accesos">
-              <AccesosPage />
-            </ProtectedRoute>
-          }
-        />
       </Route>
 
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
