@@ -55,6 +55,7 @@ export default function ReservasPage() {
     nombre:     "",
     documento:  "",
     email:      "",
+    telefono:   "",
     habitacion: "",
     checkin:    "",
     checkout:   "",
@@ -115,7 +116,7 @@ export default function ReservasPage() {
 
       setModal(false);
       setErrFecha("");
-      setForm({ nombre: "", documento: "", email: "", habitacion: "", checkin: "", checkout: "", huespedes: "2" });
+      setForm({ nombre: "", documento: "", email: "", telefono: "", habitacion: "", checkin: "", checkout: "", huespedes: "2" });
     } catch (error) {
       console.error(error);
       toast("Error al crear reserva");
@@ -320,15 +321,28 @@ export default function ReservasPage() {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-input"
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Teléfono / WhatsApp *</label>
+                    <input
+                      className="form-input"
+                      type="tel"
+                      required
+                      placeholder="Ej. 3001234567"
+                      value={form.telefono}
+                      onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -377,6 +391,7 @@ export default function ReservasPage() {
             <thead>
               <tr>
                 <th>Huésped</th>
+                <th>Contacto</th>
                 <th>Hab.</th>
                 <th>Check-in</th>
                 <th>Check-out</th>
@@ -397,8 +412,19 @@ export default function ReservasPage() {
                         <div className="av">{initials(r.nombre)}</div>
                         <div>
                           <div style={{ fontWeight: 500 }}>{r.nombre}</div>
-                          <div style={{ fontSize: 10, color: "var(--muted)" }}>{r.email}</div>
+                          <div style={{ fontSize: 10, color: "var(--muted)" }}>CC: {r.documento || "—"}</div>
                         </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: 11 }}>
+                        {r.telefono && (
+                          <div style={{ color: "var(--green)", fontWeight: 600 }}>📱 {r.telefono}</div>
+                        )}
+                        {r.email && (
+                          <div style={{ fontSize: 10, color: "var(--muted)" }}>{r.email}</div>
+                        )}
+                        {!r.telefono && !r.email && <span style={{ color: "var(--muted)" }}>—</span>}
                       </div>
                     </td>
                     <td><span className="room-tag">{r.habitacion}</span></td>

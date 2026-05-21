@@ -102,22 +102,34 @@ export default function ServicioPage() {
           </div>
         </div>
 
-        {/* Disponibles */}
+        {/* Disponibles por piso */}
         <div className="panel">
           <div className="panel-header">
             <div className="panel-title" style={{ color:"var(--green)" }}>◎ Disponibles ({disponibles.length})</div>
           </div>
           <div className="panel-body">
-            <div className="rooms-grid" style={{ gridTemplateColumns:"repeat(auto-fill,minmax(72px,1fr))", gap:8 }}>
-              {disponibles.map(h => (
-                <div key={h.id} className="room-cell disponible" style={{ padding:"12px 6px" }}>
-                  <div className="room-num">{h.numero}</div>
-                  <div className="room-type">{h.tipo?.split(" ")[0]}</div>
-                </div>
-              ))}
-            </div>
-            {disponibles.length === 0 && (
+            {disponibles.length === 0 ? (
               <div style={{ textAlign:"center", padding:16, color:"var(--muted)", fontSize:12 }}>Sin habitaciones disponibles.</div>
+            ) : (
+              [1,2,3,4,5].map(piso => {
+                const pisoHabs = disponibles.filter(h => h.piso === piso);
+                if (!pisoHabs.length) return null;
+                return (
+                  <div key={piso} style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8, paddingBottom:4, borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+                      Piso {piso} — {pisoHabs.length} libre{pisoHabs.length !== 1 ? "s" : ""}
+                    </div>
+                    <div className="rooms-grid" style={{ gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))", gap:8 }}>
+                      {pisoHabs.map(h => (
+                        <div key={h.id} className="room-cell disponible" style={{ padding:"12px 6px" }}>
+                          <div className="room-num">{h.numero}</div>
+                          <div className="room-type" style={{ fontSize:9 }}>{h.tipo}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useHabitaciones } from "../hooks/useHabitaciones.jsx";
+import { useReservas } from "../hooks/useReservas.jsx";
 import { actualizarHabitacion } from "../firebase/firestore";
 import { useToast } from "../hooks/useToast.jsx";
 
@@ -9,9 +10,18 @@ const BADGE = { ocupada:"b-red", disponible:"b-green", limpieza:"b-amber", reser
 
 export default function HabitacionesPage() {
   const { habitaciones, loading } = useHabitaciones();
+  const { reservas } = useReservas();
   const { toast, ToastContainer } = useToast();
   const [selected, setSelected] = useState(null);
   const [filtro, setFiltro] = useState("todas");
+
+  const getReservaActiva = (numero) =>
+    reservas.find(
+      (r) =>
+        r.habitacion === numero &&
+        (r.estado === "confirmada" || r.estado === "pendiente" || r.estado === "checkin")
+    );
+
 
   const counts = ESTADOS.reduce((acc, e) => ({ ...acc, [e]: habitaciones.filter(h => h.estado === e).length }), {});
   const filtradas = filtro === "todas" ? habitaciones : habitaciones.filter(h => h.estado === filtro);
@@ -41,17 +51,30 @@ export default function HabitacionesPage() {
                   <div className="room-type">{selected.tipo}</div>
                 </div>
               </div>
-              {[
-                ["Estado actual", <span className={`badge ${BADGE[selected.estado]}`}>{ESTADO_LABEL[selected.estado]}</span>],
-                ["Tipo", selected.tipo],
-                ["Piso", `Piso ${selected.piso}`],
-                ["Precio/noche", `$${(selected.precio/1000).toFixed(0)}K COP`],
-                selected.huesped && ["Huésped", selected.huesped],
-              ].filter(Boolean).map(([k, v]) => (
-                <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.04)", fontSize:13 }}>
-                  <span style={{ color:"var(--muted)" }}>{k}</span><span>{v}</span>
-                </div>
-              ))}
+              {(() => {
+                const res = getReservaActiva(selected.numero);
+                const filas = [
+                  ["Estado actual", <span className={`badge ${BADGE[selected.estado]}`}>{ESTADO_LABEL[selected.estado]}</span>],
+                  ["Tipo", selected.tipo],
+                  ["Piso", `Piso ${selected.piso}`],
+                  ["Precio/noche", `$${(selected.precio/1000).toFixed(0)}K COP`],
+                ];
+                if (res) {
+                  filas.push(["Reservado por", <strong style={{ color:"var(--white)" }}>{res.nombre}</strong>]);
+                  if (res.documento) filas.push(["Cédula", res.documento]);
+                  if (res.telefono) filas.push(["Teléfono / WhatsApp", <span style={{ color:"var(--green)", fontWeight:700 }}>📱 {res.telefono}</span>]);
+                  if (res.email) filas.push(["Email", <span style={{ fontSize:11 }}>{res.email}</span>]);
+                  if (res.checkin) filas.push(["Check-in", res.checkin]);
+                  if (res.checkout) filas.push(["Check-out", res.checkout]);
+                } else if (selected.huesped) {
+                  filas.push(["Huésped", selected.huesped]);
+                }
+                return filas.map(([k, v]) => (
+                  <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.04)", fontSize:13 }}>
+                    <span style={{ color:"var(--muted)" }}>{k}</span><span>{v}</span>
+                  </div>
+                ));
+              })()}
               <div style={{ marginTop:18 }}>
                 <div style={{ fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>Cambiar estado</div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -89,7 +112,7 @@ export default function HabitacionesPage() {
       <div className="panel">
         <div className="panel-header">
           <div className="panel-title">Mapa de habitaciones</div>
-          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
               {[{c:"rgba(231,76,60,0.5)",l:"Ocupada"},{c:"rgba(46,204,113,0.5)",l:"Libre"},{c:"rgba(243,156,18,0.5)",l:"Limpieza"},{c:"rgba(52,152,219,0.5)",l:"Reservada"}].map(x=>(
                 <div key={x.l} style={{ display:"flex", alignItems:"center", gap:5, fontSize:10, color:"var(--muted)" }}>
@@ -103,7 +126,7 @@ export default function HabitacionesPage() {
         <div className="panel-body">
           {loading ? <div style={{ textAlign:"center", padding:24, color:"var(--muted)" }}>Cargando habitaciones...</div> : (
             <>
-              {[1,2,3].map(piso => {
+              {[1,2,3,4,5].map(piso => {
                 const pisoHabs = filtradas.filter(h => h.piso === piso);
                 if (!pisoHabs.length) return null;
                 return (
@@ -112,13 +135,23 @@ export default function HabitacionesPage() {
                       Piso {piso}
                     </div>
                     <div className="rooms-grid" style={{ gridTemplateColumns:"repeat(auto-fill,minmax(88px,1fr))", gap:10 }}>
-                      {pisoHabs.map(h => (
-                        <div key={h.id} className={`room-cell ${h.estado}`} onClick={() => setSelected(h)} style={{ padding:"14px 8px" }}>
-                          <div className="room-num" style={{ fontSize:17 }}>{h.numero}</div>
-                          <div className="room-type">{h.tipo?.split(" ")[0]}</div>
-                          {h.huesped && <div style={{ fontSize:8, marginTop:4, opacity:0.6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{h.huesped}</div>}
-                        </div>
-                      ))}
+                      {pisoHabs.map(h => {
+                        const res = getReservaActiva(h.numero);
+                        return (
+                          <div key={h.id} className={`room-cell ${h.estado}`} onClick={() => setSelected(h)} style={{ padding:"14px 8px" }}>
+                            <div className="room-num" style={{ fontSize:17 }}>{h.numero}</div>
+                            <div className="room-type">{h.tipo?.split(" ")[0]}</div>
+                            {res ? (
+                              <>
+                                <div style={{ fontSize:8, marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"rgba(255,255,255,0.75)" }}>{res.nombre?.split(" ")[0]}</div>
+                                {res.telefono && <div style={{ fontSize:7, marginTop:1, color:"rgba(100,255,100,0.8)" }}>📱{res.telefono}</div>}
+                              </>
+                            ) : h.huesped ? (
+                              <div style={{ fontSize:8, marginTop:4, opacity:0.6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{h.huesped}</div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

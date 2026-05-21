@@ -10,12 +10,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   orderBy,
   serverTimestamp,
   setDoc,
   limit,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -376,7 +378,7 @@ export const suscribirNovedades = (callback) => {
   });
 };
 
-// ─── SEMILLA: crear automáticamente 100 habitaciones ───
+// ─── SEMILLA: crear automáticamente 100 habitaciones (5 pisos × 20) ───
 export const seedHabitaciones = async () => {
   const habitaciones = [];
 
@@ -417,5 +419,39 @@ export const seedHabitaciones = async () => {
     );
   }
 
-  console.log("✅ 100 habitaciones creadas en Firestore");
+  console.log("✅ 100 habitaciones creadas en Firestore (5 pisos × 20)");
+};
+
+// ─── LIMPIEZA: eliminar ingresos anteriores a hoy ──────
+export const eliminarIngresosAnteriores = async () => {
+  const snap = await getDocs(collection(db, "ingresos"));
+  const hoy = new Date().toDateString();
+  const aEliminar = snap.docs.filter((d) => {
+    const f = d.data().fecha;
+    const date = f?.toDate ? f.toDate() : f ? new Date(f) : null;
+    return !date || date.toDateString() !== hoy;
+  });
+  for (let i = 0; i < aEliminar.length; i += 400) {
+    const batch = writeBatch(db);
+    aEliminar.slice(i, i + 400).forEach((d) => batch.delete(doc(db, "ingresos", d.id)));
+    await batch.commit();
+  }
+  return aEliminar.length;
+};
+
+// ─── LIMPIEZA: eliminar egresos anteriores a hoy ───────
+export const eliminarEgresosAnteriores = async () => {
+  const snap = await getDocs(collection(db, "egresos"));
+  const hoy = new Date().toDateString();
+  const aEliminar = snap.docs.filter((d) => {
+    const f = d.data().fecha;
+    const date = f?.toDate ? f.toDate() : f ? new Date(f) : null;
+    return !date || date.toDateString() !== hoy;
+  });
+  for (let i = 0; i < aEliminar.length; i += 400) {
+    const batch = writeBatch(db);
+    aEliminar.slice(i, i + 400).forEach((d) => batch.delete(doc(db, "egresos", d.id)));
+    await batch.commit();
+  }
+  return aEliminar.length;
 };
