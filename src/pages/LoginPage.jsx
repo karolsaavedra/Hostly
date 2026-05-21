@@ -26,26 +26,7 @@ export default function LoginPage() {
         return;
       }
 
-      switch (empleado.rol) {
-        case "recepcionista":
-          navigate("/");
-          break;
-
-        case "contador":
-          navigate("/reportes");
-          break;
-
-        case "vigilante":
-          navigate("/accesos");
-          break;
-
-        case "servicio":
-          navigate("/servicio");
-          break;
-
-        default:
-          navigate("/");
-      }
+      navigate("/");
 
     } catch (error) {
       setError("Credenciales incorrectas. Verifica tu email y contraseña.");

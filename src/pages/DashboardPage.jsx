@@ -447,7 +447,7 @@ function ServicioPanel() {
     <>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, color: "var(--white)", marginBottom: 4 }}>
-          Bienvenido, Housekeeping
+          Panel de Servicio
         </div>
         <div style={{ fontSize: 12, color: "var(--muted)" }}>Estado actual de habitaciones</div>
       </div>

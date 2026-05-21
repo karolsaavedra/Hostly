@@ -1,45 +1,111 @@
 import { useState, useEffect } from "react";
-import { suscribirPagosEmpleados, registrarPagoEmpleado } from "../firebase/firestore";
+import {
+  suscribirPagosEmpleados,
+  registrarPagoEmpleado,
+  actualizarPagoEmpleadoConAuditoria,
+} from "../firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../hooks/useToast.jsx";
+import { toDateSafe, isSameMonth, formatCOP } from "../utils/dateMoney";
+import { exportCsv } from "../utils/exportCsv";
 
-const fmtMoney = (n) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency", currency: "COP", maximumFractionDigits: 0,
-  }).format(n || 0);
-
+// ── Constantes de módulo ──────────────────────────────────
 const fmtFecha = (ts) =>
-  ts?.toDate?.()?.toLocaleDateString("es-CO", {
-    day: "2-digit", month: "short", year: "numeric",
-  }) || "—";
+  toDateSafe(ts)?.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) || "—";
 
-const isSameMonth = (ts) => {
-  if (!ts?.toDate) return false;
-  const d = ts.toDate();
-  const n = new Date();
-  return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+const CONCEPTOS = ["Salario mensual", "Quincena", "Bono / incentivo", "Horas extras", "Liquidación", "Anticipo", "Otro"];
+const METODOS   = ["Transferencia", "Efectivo", "Nequi / Daviplata", "Cheque"];
+const FORM_V    = { nombreEmpleado: "", concepto: "Salario mensual", monto: "", metodo: "Transferencia", observacion: "" };
+
+// ── Función pura de módulo ────────────────────────────────
+const bloquearEnter = (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 };
 
-export default function PagosEmpleadosPage() {
-  const [pagos, setPagos]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal]     = useState(false);
-  const { usuario }           = useAuth();
-  const { toast, ToastContainer } = useToast();
+// ── Definido FUERA de PagosEmpleadosPage ──────────────────
+function CamposPagoForm({ f, sf }) {
+  return (
+    <>
+      <div className="form-group">
+        <label className="form-label">Nombre del empleado</label>
+        <input
+          className="form-input"
+          required
+          autoComplete="off"
+          placeholder="Nombre completo"
+          value={f.nombreEmpleado}
+          onChange={(e) => sf((prev) => ({ ...prev, nombreEmpleado: e.target.value }))}
+        />
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Concepto</label>
+          <select
+            className="form-input form-select"
+            value={f.concepto}
+            onChange={(e) => sf((prev) => ({ ...prev, concepto: e.target.value }))}
+          >
+            {CONCEPTOS.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Monto (COP)</label>
+          <input
+            className="form-input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="Ej. 1200000"
+            value={f.monto}
+            onKeyDown={bloquearEnter}
+            onChange={(e) => {
+              const limpio = e.target.value.replace(/\D/g, "");
+              sf((prev) => ({ ...prev, monto: limpio }));
+            }}
+          />
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Método de pago</label>
+        <select
+          className="form-input form-select"
+          value={f.metodo}
+          onChange={(e) => sf((prev) => ({ ...prev, metodo: e.target.value }))}
+        >
+          {METODOS.map((m) => <option key={m}>{m}</option>)}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Observaciones (período, etc.)</label>
+        <textarea
+          className="form-input"
+          rows="2"
+          placeholder="Ej. Mayo 2025, primera quincena"
+          style={{ resize: "none" }}
+          value={f.observacion}
+          onChange={(e) => sf((prev) => ({ ...prev, observacion: e.target.value }))}
+        />
+      </div>
+    </>
+  );
+}
 
-  const [form, setForm] = useState({
-    nombreEmpleado: "",
-    concepto:       "Salario mensual",
-    monto:          "",
-    metodo:         "Transferencia",
-    observacion:    "",
-  });
+// ── Componente principal ──────────────────────────────────
+export default function PagosEmpleadosPage() {
+  const [pagos, setPagos]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [modalCrear, setModalCrear] = useState(false);
+  const [modalEditar, setModalEditar] = useState(null);
+  const { usuario }                 = useAuth();
+  const { toast, ToastContainer }   = useToast();
+  const [form, setForm]             = useState(FORM_V);
+  const [formEdit, setFormEdit]     = useState(FORM_V);
 
   useEffect(() => {
-    const unsub = suscribirPagosEmpleados((data) => {
-      setPagos(data);
-      setLoading(false);
-    });
+    const unsub = suscribirPagosEmpleados((data) => { setPagos(data); setLoading(false); });
     return () => unsub();
   }, []);
 
@@ -48,102 +114,98 @@ export default function PagosEmpleadosPage() {
 
   const handleCrear = async (ev) => {
     ev.preventDefault();
-    try {
-      await registrarPagoEmpleado({
-        ...form,
-        monto:         Number(form.monto),
-        registradoPor: usuario?.email || "sistema",
-      });
-      toast(`Pago de ${fmtMoney(Number(form.monto))} registrado para ${form.nombreEmpleado} ✓`);
-      setModal(false);
-      setForm({ nombreEmpleado: "", concepto: "Salario mensual", monto: "", metodo: "Transferencia", observacion: "" });
-    } catch (err) {
-      console.error(err);
-      toast("Error al registrar pago");
-    }
+    if (!form.monto || Number(form.monto) <= 0) { toast("El monto debe ser un número positivo"); return; }
+    await registrarPagoEmpleado({ ...form, monto: Number(form.monto), registradoPor: usuario?.email || "sistema" });
+    toast(`Pago de ${formatCOP(Number(form.monto))} registrado para ${form.nombreEmpleado} ✓`);
+    setModalCrear(false);
+    setForm(FORM_V);
+  };
+
+  const abrirEditar = (pago) => {
+    setFormEdit({
+      nombreEmpleado: pago.nombreEmpleado || "",
+      concepto:       pago.concepto       || "Salario mensual",
+      monto:          String(pago.monto   || ""),
+      metodo:         pago.metodo         || "Transferencia",
+      observacion:    pago.observacion    || "",
+    });
+    setModalEditar(pago);
+  };
+
+  const handleEditar = async (ev) => {
+    ev.preventDefault();
+    if (!formEdit.monto || Number(formEdit.monto) <= 0) { toast("El monto debe ser un número positivo"); return; }
+    await actualizarPagoEmpleadoConAuditoria(
+      modalEditar.id,
+      { ...formEdit, monto: Number(formEdit.monto) },
+      { nombreEmpleado: modalEditar.nombreEmpleado, monto: modalEditar.monto, concepto: modalEditar.concepto },
+      usuario
+    );
+    toast("Pago actualizado ✓");
+    setModalEditar(null);
+  };
+
+  const handleExportarCSV = () => {
+    const ok = exportCsv({
+      filename: `pagos_empleados_${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { label: "Fecha",          key: "fecha",       transform: (v) => toDateSafe(v)?.toLocaleDateString("es-CO") || "—" },
+        { label: "Empleado",       key: "nombreEmpleado" },
+        { label: "Concepto",       key: "concepto" },
+        { label: "Método de pago", key: "metodo" },
+        { label: "Monto COP",      key: "monto" },
+        { label: "Observaciones",  key: "observacion" },
+        { label: "Registrado por", key: "registradoPor" },
+      ],
+      rows: pagos,
+    });
+    if (!ok) toast("No hay pagos para exportar");
   };
 
   return (
     <>
       <ToastContainer />
 
-      {modal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setModal(false)}>
-          <div className="modal">
+      {modalCrear && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setModalCrear(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">Registrar Pago a Empleado</div>
-              <button className="modal-close" onClick={() => setModal(false)}>✕</button>
+              <button type="button" className="modal-close" onClick={() => setModalCrear(false)}>✕</button>
             </div>
-            <form onSubmit={handleCrear}>
+            <form
+              onSubmit={handleCrear}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+            >
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Nombre del empleado</label>
-                  <input
-                    className="form-input"
-                    required
-                    placeholder="Nombre completo"
-                    value={form.nombreEmpleado}
-                    onChange={(e) => setForm({ ...form, nombreEmpleado: e.target.value })}
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Concepto</label>
-                    <select
-                      className="form-input form-select"
-                      value={form.concepto}
-                      onChange={(e) => setForm({ ...form, concepto: e.target.value })}
-                    >
-                      <option>Salario mensual</option>
-                      <option>Quincena</option>
-                      <option>Bono / incentivo</option>
-                      <option>Horas extras</option>
-                      <option>Liquidación</option>
-                      <option>Anticipo</option>
-                      <option>Otro</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Monto (COP)</label>
-                    <input
-                      className="form-input"
-                      type="number"
-                      required
-                      min="1"
-                      placeholder="1200000"
-                      value={form.monto}
-                      onChange={(e) => setForm({ ...form, monto: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Método de pago</label>
-                  <select
-                    className="form-input form-select"
-                    value={form.metodo}
-                    onChange={(e) => setForm({ ...form, metodo: e.target.value })}
-                  >
-                    <option>Transferencia</option>
-                    <option>Efectivo</option>
-                    <option>Nequi / Daviplata</option>
-                    <option>Cheque</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Observaciones</label>
-                  <textarea
-                    className="form-input"
-                    rows="2"
-                    placeholder="Periodo, notas..."
-                    style={{ resize: "none" }}
-                    value={form.observacion}
-                    onChange={(e) => setForm({ ...form, observacion: e.target.value })}
-                  />
-                </div>
+                <CamposPagoForm f={form} sf={setForm} />
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => setModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setModalCrear(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-gold btn-sm">Registrar pago</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modalEditar && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setModalEditar(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Editar Pago</div>
+              <button type="button" className="modal-close" onClick={() => setModalEditar(null)}>✕</button>
+            </div>
+            <form
+              onSubmit={handleEditar}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+            >
+              <div className="modal-body">
+                <CamposPagoForm f={formEdit} sf={setFormEdit} />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setModalEditar(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-gold btn-sm">Guardar cambios</button>
               </div>
             </form>
           </div>
@@ -154,12 +216,12 @@ export default function PagosEmpleadosPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
         <div className="stat-card">
           <div className="stat-lbl">Pagos del mes</div>
-          <div className="stat-val" style={{ color: "var(--blue)" }}>{fmtMoney(totalMes)}</div>
+          <div className="stat-val" style={{ color: "var(--blue)" }}>{formatCOP(totalMes)}</div>
           <div className="stat-sub">{pagos.filter((p) => isSameMonth(p.fecha)).length} registros</div>
         </div>
         <div className="stat-card">
           <div className="stat-lbl">Total acumulado</div>
-          <div className="stat-val">{fmtMoney(totalAcum)}</div>
+          <div className="stat-val">{formatCOP(totalAcum)}</div>
           <div className="stat-sub">{pagos.length} registros</div>
         </div>
         <div className="stat-card">
@@ -173,7 +235,10 @@ export default function PagosEmpleadosPage() {
       <div className="panel">
         <div className="panel-header">
           <div className="panel-title">Pagos a empleados</div>
-          <button className="btn btn-gold btn-sm" onClick={() => setModal(true)}>+ Registrar pago</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleExportarCSV}>↓ CSV</button>
+            <button className="btn btn-gold btn-sm" onClick={() => setModalCrear(true)}>+ Registrar pago</button>
+          </div>
         </div>
 
         {loading ? (
@@ -186,14 +251,7 @@ export default function PagosEmpleadosPage() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Empleado</th>
-                <th>Concepto</th>
-                <th>Método</th>
-                <th>Registrado por</th>
-                <th>Monto</th>
-              </tr>
+              <tr><th>Fecha</th><th>Empleado</th><th>Concepto</th><th>Método</th><th>Monto</th><th></th></tr>
             </thead>
             <tbody>
               {pagos.map((p) => (
@@ -203,11 +261,12 @@ export default function PagosEmpleadosPage() {
                   <td>
                     <div>{p.concepto}</div>
                     {p.observacion && <div style={{ fontSize: 10, color: "var(--muted)" }}>{p.observacion}</div>}
+                    {p.actualizadoEn && <div style={{ fontSize: 9, color: "var(--muted)" }}>✏ editado</div>}
                   </td>
                   <td><span className="badge b-gray">{p.metodo}</span></td>
-                  <td style={{ fontSize: 11, color: "var(--muted)" }}>{p.registradoPor || "—"}</td>
-                  <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "var(--blue)", fontSize: 14 }}>
-                    {fmtMoney(p.monto)}
+                  <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "var(--blue)", fontSize: 14 }}>{formatCOP(p.monto)}</td>
+                  <td>
+                    <button className="btn btn-ghost btn-sm" onClick={() => abrirEditar(p)}>Editar</button>
                   </td>
                 </tr>
               ))}

@@ -40,6 +40,13 @@ const NAV_POR_ROL = {
       ],
     },
     {
+      section: "Contabilidad",
+      items: [
+        { path: "/informes-contables", icon: "📄", label: "Informes contables" },
+        { path: "/auditoria",          icon: "🔍", label: "Auditoría" },
+      ],
+    },
+    {
       section: "Sistema",
       items: [
         { path: "/accesos",  icon: "◈", label: "Control acceso", badge: "live" },
@@ -76,9 +83,9 @@ const NAV_POR_ROL = {
       ],
     },
     {
-      section: "Pisos",
+      section: "Limpieza",
       items: [
-        { path: "/servicio", icon: "🧹", label: "Estado de Pisos", badge: "live" },
+        { path: "/servicio", icon: "🧹", label: "Limpieza y habitaciones", badge: "live" },
       ],
     },
   ],
@@ -97,6 +104,13 @@ const NAV_POR_ROL = {
         { path: "/ingresos",        icon: "◎", label: "Ingresos" },
         { path: "/egresos",         icon: "◎", label: "Egresos" },
         { path: "/pagos-empleados", icon: "◎", label: "Pagos empleados" },
+      ],
+    },
+    {
+      section: "Contabilidad",
+      items: [
+        { path: "/informes-contables", icon: "📄", label: "Informes contables" },
+        { path: "/auditoria",          icon: "🔍", label: "Auditoría financiera" },
       ],
     },
   ],
@@ -136,7 +150,7 @@ const COLORES = {
 const LABELS_ROL = {
   admin:         "Administrador",
   recepcionista: "Recepcionista",
-  servicio:      "Housekeeping",
+  servicio:      "Servicio",
   contador:      "Contador",
   vigilante:     "Vigilante",
 };
@@ -229,10 +243,10 @@ export default function Layout() {
 
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={s.sfName}>
-              {usuario?.nombre || usuario?.email?.split("@")[0] || rolActual}
-            </div>
-            <div style={{ ...s.sfRole, color: COLORES[rolActual] || "#6B6660" }}>
               {LABELS_ROL[rolActual] || rolActual}
+            </div>
+            <div style={{ ...s.sfRole, color: "#6B6660" }}>
+              Sesión activa
             </div>
           </div>
 

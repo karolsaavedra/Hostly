@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { suscribirHistorial } from "../firebase/firestore";
+import { formatCOP, toDateSafe } from "../utils/dateMoney";
+import { exportCsv } from "../utils/exportCsv";
+import { useToast } from "../hooks/useToast.jsx";
 
-const fmtMoney = (n) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency", currency: "COP", maximumFractionDigits: 0,
-  }).format(n || 0);
+const fmtMoney = formatCOP;
 
 const fmtFecha = (ts) =>
-  ts?.toDate?.()?.toLocaleDateString("es-CO", {
+  toDateSafe(ts)?.toLocaleDateString("es-CO", {
     day: "2-digit", month: "short", year: "numeric",
   }) || "—";
 
@@ -45,40 +45,31 @@ export default function HistorialPage() {
 
   const totalFiltrado = filtrado.reduce((s, e) => s + (Number(e.valorPagado) || 0), 0);
 
+  const { toast, ToastContainer } = useToast();
+
   const exportarCSV = () => {
-    const cabecera = [
-      "Huésped", "Documento", "Habitación", "Tipo", "Piso",
-      "Check-in", "Check-out", "Noches", "Precio/noche",
-      "Total", "Método pago", "Check-in por", "Check-out por",
-      "Estado hab.", "Observaciones",
-    ].join(",");
-
-    const filas = filtrado.map((e) => [
-      `"${e.nombre || ""}"`,
-      `"${e.documento || ""}"`,
-      `"${e.habitacion || ""}"`,
-      `"${e.tipoHabitacion || ""}"`,
-      e.piso || "",
-      `"${e.fechaCheckin || ""}"`,
-      `"${e.fechaCheckout || ""}"`,
-      e.noches || 0,
-      e.precioNoche || 0,
-      e.valorPagado || 0,
-      `"${e.metodoPago || ""}"`,
-      `"${e.checkinPor || ""}"`,
-      `"${e.checkoutPor || ""}"`,
-      `"${e.estadoFinalHabitacion || ""}"`,
-      `"${(e.observaciones || "").replace(/"/g, "'")}"`,
-    ].join(","));
-
-    const csv = [cabecera, ...filas].join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `historial_estancias_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const ok = exportCsv({
+      filename: `historial_estancias_${new Date().toISOString().slice(0, 10)}.csv`,
+      columns: [
+        { label: "Huésped",       key: "nombre" },
+        { label: "Documento",     key: "documento" },
+        { label: "Habitación",    key: "habitacion" },
+        { label: "Tipo",          key: "tipoHabitacion" },
+        { label: "Piso",          key: "piso" },
+        { label: "Check-in",      key: "fechaCheckin" },
+        { label: "Check-out",     key: "fechaCheckout" },
+        { label: "Noches",        key: "noches" },
+        { label: "Precio/noche",  key: "precioNoche" },
+        { label: "Cobrado COP",   key: "valorPagado" },
+        { label: "Método pago",   key: "metodoPago" },
+        { label: "Check-in por",  key: "checkinPor" },
+        { label: "Check-out por", key: "checkoutPor" },
+        { label: "Estado hab.",   key: "estadoFinalHabitacion" },
+        { label: "Observaciones", key: "observaciones" },
+      ],
+      rows: filtrado,
+    });
+    if (!ok) toast("No hay estancias para exportar con los filtros actuales");
   };
 
   const limpiarFiltros = () => {
@@ -94,6 +85,7 @@ export default function HistorialPage() {
 
   return (
     <>
+      <ToastContainer />
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
         <div className="stat-card">

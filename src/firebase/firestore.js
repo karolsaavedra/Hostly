@@ -9,11 +9,13 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   query,
   orderBy,
   serverTimestamp,
   setDoc,
+  limit,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -195,6 +197,178 @@ export const registrarPagoEmpleado = async (datos) => {
 export const suscribirPagosEmpleados = (callback) => {
   const q = query(
     collection(db, "pagos_empleados"),
+    orderBy("fecha", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+// ─── ACTUALIZAR INGRESO ────────────────────────────────
+export const actualizarIngreso = async (id, datos) => {
+  return await updateDoc(doc(db, "ingresos", id), {
+    ...datos,
+    actualizadoEn: serverTimestamp(),
+  });
+};
+
+// ─── ACTUALIZAR EGRESO ─────────────────────────────────
+export const actualizarEgreso = async (id, datos) => {
+  return await updateDoc(doc(db, "egresos", id), {
+    ...datos,
+    actualizadoEn: serverTimestamp(),
+  });
+};
+
+// ─── ACTUALIZAR PAGO EMPLEADO ──────────────────────────
+export const actualizarPagoEmpleado = async (id, datos) => {
+  return await updateDoc(doc(db, "pagos_empleados", id), {
+    ...datos,
+    actualizadoEn: serverTimestamp(),
+  });
+};
+
+// ─── AUDITORÍA ─────────────────────────────────────────
+export const registrarAuditoria = async (datos) => {
+  return await addDoc(collection(db, "auditoria"), {
+    ...datos,
+    fecha: serverTimestamp(),
+  });
+};
+
+export const suscribirAuditoria = (callback, maxItems = 200) => {
+  const q = query(
+    collection(db, "auditoria"),
+    orderBy("fecha", "desc"),
+    limit(maxItems)
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+// Wrappers con auditoría automática
+export const actualizarIngresoConAuditoria = async (id, datosNuevos, datosAnteriores, usuario) => {
+  await actualizarIngreso(id, { ...datosNuevos, actualizadoPor: usuario?.email || "sistema" });
+  await registrarAuditoria({
+    entidad: "ingresos",
+    entidadId: id,
+    accion: "actualizar",
+    antes: datosAnteriores,
+    despues: datosNuevos,
+    usuarioEmail: usuario?.email || "sistema",
+    usuarioRol: usuario?.rol || "—",
+    descripcion: `Ingreso editado — ${datosNuevos.descripcion || id}`,
+  });
+};
+
+export const actualizarEgresoConAuditoria = async (id, datosNuevos, datosAnteriores, usuario) => {
+  await actualizarEgreso(id, { ...datosNuevos, actualizadoPor: usuario?.email || "sistema" });
+  await registrarAuditoria({
+    entidad: "egresos",
+    entidadId: id,
+    accion: "actualizar",
+    antes: datosAnteriores,
+    despues: datosNuevos,
+    usuarioEmail: usuario?.email || "sistema",
+    usuarioRol: usuario?.rol || "—",
+    descripcion: `Egreso editado — ${datosNuevos.concepto || id}`,
+  });
+};
+
+export const actualizarPagoEmpleadoConAuditoria = async (id, datosNuevos, datosAnteriores, usuario) => {
+  await actualizarPagoEmpleado(id, { ...datosNuevos, actualizadoPor: usuario?.email || "sistema" });
+  await registrarAuditoria({
+    entidad: "pagos_empleados",
+    entidadId: id,
+    accion: "actualizar",
+    antes: datosAnteriores,
+    despues: datosNuevos,
+    usuarioEmail: usuario?.email || "sistema",
+    usuarioRol: usuario?.rol || "—",
+    descripcion: `Pago editado — ${datosNuevos.nombreEmpleado || id}`,
+  });
+};
+
+// ─── COMPROBANTES INTERNOS ─────────────────────────────
+export const crearComprobante = async (datos) => {
+  return await addDoc(collection(db, "comprobantes"), {
+    ...datos,
+    estado: "confirmado",
+    creadoEn: serverTimestamp(),
+  });
+};
+
+export const suscribirComprobantes = (callback) => {
+  const q = query(
+    collection(db, "comprobantes"),
+    orderBy("creadoEn", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+export const anularComprobante = async (id, motivo, usuario) => {
+  await updateDoc(doc(db, "comprobantes", id), {
+    estado: "anulado",
+    motivoAnulacion: motivo,
+    anuladoPor: usuario?.email || "sistema",
+    anuladoEn: serverTimestamp(),
+  });
+  await registrarAuditoria({
+    entidad: "comprobantes",
+    entidadId: id,
+    accion: "eliminar-logico",
+    antes: { estado: "confirmado" },
+    despues: { estado: "anulado", motivo },
+    usuarioEmail: usuario?.email || "sistema",
+    usuarioRol: usuario?.rol || "—",
+    descripcion: `Comprobante anulado — ${motivo}`,
+  });
+};
+
+// ─── CAJAS DIARIAS ─────────────────────────────────────
+export const crearCajaDiaria = async (datos) => {
+  return await addDoc(collection(db, "cajas_diarias"), {
+    ...datos,
+    creadoEn: serverTimestamp(),
+  });
+};
+
+export const actualizarCajaDiaria = async (id, datos) => {
+  return await updateDoc(doc(db, "cajas_diarias", id), {
+    ...datos,
+    actualizadoEn: serverTimestamp(),
+  });
+};
+
+export const suscribirCajasDiarias = (callback) => {
+  const q = query(
+    collection(db, "cajas_diarias"),
+    orderBy("creadoEn", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+};
+
+// ─── NOVEDADES ─────────────────────────────────────────
+export const registrarNovedad = async (datos) => {
+  return await addDoc(collection(db, "novedades"), {
+    ...datos,
+    estado: "abierta",
+    fecha: serverTimestamp(),
+  });
+};
+
+export const actualizarNovedad = async (id, datos) => {
+  return await updateDoc(doc(db, "novedades", id), datos);
+};
+
+export const suscribirNovedades = (callback) => {
+  const q = query(
+    collection(db, "novedades"),
     orderBy("fecha", "desc")
   );
   return onSnapshot(q, (snap) => {

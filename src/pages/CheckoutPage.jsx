@@ -134,10 +134,10 @@ export default function CheckoutPage() {
           className="modal-overlay"
           onClick={(e) => e.target === e.currentTarget && setModalCO(null)}
         >
-          <div className="modal">
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">Registrar Check-out</div>
-              <button className="modal-close" onClick={() => setModalCO(null)}>✕</button>
+              <button type="button" className="modal-close" onClick={() => setModalCO(null)}>✕</button>
             </div>
 
             <div className="modal-body">
@@ -158,11 +158,16 @@ export default function CheckoutPage() {
                   <label className="form-label">Monto cobrado (COP)</label>
                   <input
                     className="form-input"
-                    type="number"
-                    min="0"
-                    placeholder="0"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ej. 300000"
                     value={formCO.monto}
-                    onChange={(e) => setFormCO({ ...formCO, monto: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                    autoComplete="off"
+                    onChange={(e) => {
+                      const limpio = e.target.value.replace(/\D/g, "");
+                      setFormCO((prev) => ({ ...prev, monto: limpio }));
+                    }}
                   />
                 </div>
                 <div className="form-group">
@@ -216,10 +221,11 @@ export default function CheckoutPage() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-outline btn-sm" onClick={() => setModalCO(null)}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setModalCO(null)}>
                 Cancelar
               </button>
               <button
+                type="button"
                 className="btn btn-gold btn-sm"
                 onClick={confirmarCheckout}
                 disabled={procesando}

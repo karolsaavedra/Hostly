@@ -21,6 +21,8 @@ import HistorialPage from "./pages/HistorialPage";
 import EgresosPage from "./pages/EgresosPage";
 import PagosEmpleadosPage from "./pages/PagosEmpleadosPage";
 import UsuariosPage from "./pages/UsuariosPage";
+import AuditoriaPage from "./pages/AuditoriaPage";
+import InformesContablesPage from "./pages/InformesContablesPage";
 
 // Rutas permitidas por rol
 const ROL_RUTAS = {
@@ -38,6 +40,8 @@ const ROL_RUTAS = {
     "/reportes",
     "/accesos",
     "/usuarios",
+    "/auditoria",
+    "/informes-contables",
   ],
 
   recepcionista: [
@@ -61,6 +65,8 @@ const ROL_RUTAS = {
     "/ingresos",
     "/egresos",
     "/pagos-empleados",
+    "/auditoria",
+    "/informes-contables",
   ],
 
   vigilante: [
@@ -99,7 +105,8 @@ export default function App() {
   if (!usuario) {
     return (
       <Routes>
-        <Route path="*" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }
@@ -140,6 +147,10 @@ export default function App() {
 
         {/* Admin exclusivo */}
         <Route path="usuarios" element={<ProtectedRoute ruta="/usuarios"><UsuariosPage /></ProtectedRoute>} />
+
+        {/* Admin + Contador */}
+        <Route path="auditoria" element={<ProtectedRoute ruta="/auditoria"><AuditoriaPage /></ProtectedRoute>} />
+        <Route path="informes-contables" element={<ProtectedRoute ruta="/informes-contables"><InformesContablesPage /></ProtectedRoute>} />
 
       </Route>
 
